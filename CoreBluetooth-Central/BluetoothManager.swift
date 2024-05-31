@@ -2,16 +2,16 @@ import Foundation
 import CoreBluetooth
 
 class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeripheralDelegate {
+    static let shared = BluetoothManager()
+
     @Published var discoveredPeripherals: [CBPeripheral] = []
-    @Published var peripheralNames: [String] = []
     @Published var message: [String] = []
     var centralManager: CBCentralManager!
     var serviceUUID: CBUUID = CBUUID(string: "C8D89CD2-E1A8-4434-B41C-3159E8CA0981")
 
-
-    override init() {
+    private override init() {
         super.init()
-        centralManager = CBCentralManager(delegate: self, queue: nil)
+        centralManager = CBCentralManager(delegate: self, queue: nil, options: [CBCentralManagerOptionRestoreIdentifierKey: "com.example.MyApp.BluetoothManager"])
     }
 
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
@@ -19,7 +19,14 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
             print("Scan Started")
             centralManager.scanForPeripherals(withServices: [serviceUUID], options: nil)
         } else {
+            print("Central manager state: \(central.state.rawValue)")
         }
+    }
+    
+    func removeDiscoveredPeripherals() {
+        print("Removing")
+        discoveredPeripherals = []
+        print("Removed")
     }
 
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber) {
@@ -86,6 +93,29 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
             } else {
                 print("Failed to decode characteristic value as UTF-8 string")
             }
+        }
+    }
+    
+    func centralManager(_ central: CBCentralManager, willRestoreState dict: [String : Any]) {
+        print("Restoring state...")
+        if let peripherals = dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral] {
+            for peripheral in peripherals {
+                print("Restoring peripheral: \(peripheral.name ?? "Unknown Device")")
+                peripheral.delegate = self
+                if !discoveredPeripherals.contains(peripheral) {
+                    discoveredPeripherals.append(peripheral)
+                }
+                if peripheral.state == .connected {
+                    peripheral.discoverServices([serviceUUID])
+                } else {
+                    // Attempt to connect to the peripheral
+                    centralManager.connect(peripheral, options: nil)
+                }
+            }
+            print("Restored \(peripherals.count) peripherals.")
+        } else {
+            print("No peripherals to restore")
+            centralManager.scanForPeripherals(withServices: [serviceUUID], options: nil)
         }
     }
 }

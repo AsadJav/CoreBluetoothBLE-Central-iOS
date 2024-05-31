@@ -9,19 +9,29 @@ import SwiftUI
 import CoreBluetooth
 
 struct ContentView: View {
-    @StateObject private var bluetoothManager = BluetoothManager()
+    @ObservedObject var bluetoothManager = BluetoothManager.shared
     var body: some View {
-        VStack {
-            Text("Searching for Peripheral device...")
-            List(bluetoothManager.discoveredPeripherals, id: \.identifier) { peripheral in
-                            Text(peripheral.name ?? "Unknown Device")
-            }
-            .navigationTitle("Device")
-            .background(Color.white)
-            List(bluetoothManager.message, id: \.self) { message in
+        NavigationView {
+            VStack {
+                NavigationLink {
+                    List(bluetoothManager.message, id: \.self) { message in
                             Text(message)
+                        }
+                } label: {
+                    List(bluetoothManager.discoveredPeripherals, id: \.identifier) { peripheral in
+                            Text(peripheral.name ?? "Unknown Device")}
+                        }
+                    }
+                .navigationTitle("Central Device")
+                .background(Color.white)
             }
-        }
+        Button(action: {
+//            exit(0)
+            assert(1==2,"Crashed")
+//            fatalError("Simulated crash for testing")
+        }, label: {
+            Text("Crash")
+        })
     }
 }
 
